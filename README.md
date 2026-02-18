@@ -133,12 +133,8 @@ The animation illustrates latent-space interpolation during diffusion-based geom
 ## GraphRNN Inference Structure
 
 <p align="center">
-  <img src="assets/GraphRNN Nodes At Inference Time.png" width="800">
+  <img src="assets/GraphRNN_Nodes_At_Inference_Time.png" width="800">
 </p>
-
-For a higher-resolution schematic, see:
-
-[GraphRNN Nodes At Inference Time (PDF)](assets/GraphRNN_Nodes_At_Inference_Time.png)
 
 The sequence illustrates node-state updates and conditional edge sampling during autoregressive graph construction.
 

@@ -1,204 +1,75 @@
-# Deep Generative Graphs for Topology-Preserved Synthetic PBX Microstructures
-
-This repository accompanies the manuscript:
-
-**Poliner, J., Sun, W., Alshibli, K. A., & Regueiro, R. A. (2026)**
-*Deep Generative Graphs for Synthesizing Microstructure of Topology-Preserved Polymer-Bonded Explosives*
-Engineering with Computers.
-
-This repository currently provides the **synthetic dataset** described in the manuscript.
-The cleaned and documented training and inference codebase will be released in a subsequent update.
-
----
+# Synthetic_PBX
+Hierarchical  approach to realistic PBX Generation
+# Graph-Based Neural Network Model
 
 ## Overview
+This project implements a Graph-Based Neural Network using PyTorch and NetworkX to model and generate structured data in the form of graphs. It leverages recurrent neural networks (RNNs) for both node and edge prediction, incorporating multi-head attention and normalization techniques.
 
-We introduce a hierarchical generative framework for synthesizing statistically and topologically consistent three-dimensional polymer-bonded explosive (PBX) microstructures.
+## Features
+- **Graph Neural Network (GNN)** for structured data modeling
+- **Custom RNNs for nodes and edges** with multi-head attention
+- **Graph normalization and denormalization** for improved training stability
+- **Adaptive edge thresholding** to enhance connectivity
+- **CUDA support** for GPU acceleration
+- **Training with adaptive learning rates** and early stopping
+- **Graph visualization** in 3D using Matplotlib
+- **Checkpointing for model resumption**
 
-The generative process is decomposed into three coupled stages:
-
-1. **Topological generation** via a modified autoregressive GraphRNN (MicrostructureRNN)
-2. **Geometric generation** via oriented bounding box (OBB) conditioned latent diffusion
-3. **Reconstruction and remeshing** to produce simulation-ready assemblies
-
-This separation enables independent control of grain network topology and grain morphology while preserving statistical fidelity to micro-CT benchmark data.
-
----
-
-## Generative Pipeline
-
-<p align="center">
-  <img src="assets/subgraph_idox_generate_20.png" width="950">
-</p>
-
-The workflow consists of:
-
-* Autoregressive generation of node-weighted grain networks
-* OBB-conditioned latent diffusion for grain geometry synthesis
-* Point cloud decoding from latent representations
-* Poisson surface reconstruction
-* Remeshing and spatial assembly into simulation-ready subdomains
-
----
-
-## OBB-Conditioned Latent Geometry Reconstruction
-
-<p align="center">
-  <img src="assets/Encoded_OBB_Reconstruction.png" width="950">
-</p>
-
-Latent diffusion operates in a learned geometric embedding space conditioned on oriented bounding box parameters and size descriptors. Decoded point clouds are subsequently reconstructed into watertight triangle meshes.
-
----
-
-## Dataset Structure
-
-The repository contains **100 generated subgraph clusters**, stored under:
-
-```
-generated_subgraphs/
-├── subgraph_000/
-├── subgraph_001/
-├── ...
-├── subgraph_099/
+## Dependencies
+Ensure you have the following dependencies installed:
+```bash
+pip install numpy networkx torch matplotlib tqdm
 ```
 
-Each `subgraph_xxx/` directory contains:
+## Model Components
+### 1. **Node RNN (`CUSTOM_RNN_NODE`)**
+   - Embeds node features
+   - Uses a GRU layer for sequence modeling
+   - Multi-head attention for capturing dependencies
+   - Predicts node attributes such as position, scale, and curvature
 
-* Individual grain geometries in **STL format** (one file per grain)
-* A full assembled subgraph representation (`assembly.stl`)
-* Spatially aligned grain configurations
+### 2. **Edge RNN (`CUSTOM_RNN_EDGE`)**
+   - Uses GRU to model edge connectivity
+   - Embedding option for edge features
+   - Predicts edge weights using sigmoid activation
 
-All geometries are watertight triangle meshes reconstructed from latent diffusion–generated point clouds.
+## Training Process
+### 1. **Data Preparation**
+   - Load subgraph datasets (`MULTI_train_subgraphs.npz`, `MULTI_test_subgraphs.npz`)
+   - Normalize node features and edge weights
 
-### Generation Sequence Per Grain
+### 2. **Training**
+   - Uses `train_epoch()` for training node and edge RNNs
+   - Implements mixed-precision training with `GradScaler`
+   - Accumulates gradients to stabilize training
+   - Saves model state and handles potential crashes
 
-Each grain geometry is produced through:
+### 3. **Validation**
+   - Uses `validate_epoch()` to evaluate models
+   - Calculates MSE loss for node and edge predictions
 
-1. Graph-based topological generation
-2. OBB-conditioned latent diffusion in latent space
-3. Point cloud decoding
-4. Poisson surface reconstruction
-5. Remeshing to produce watertight crystal geometries
+### 4. **Graph Generation**
+   - Generates new graphs using `generate_new_node()` and `add_node_to_graph()`
+   - Ensures connectivity by enforcing BFS ordering
+   - Outputs visualizations using `plot_graph_3d()`
 
----
+Training includes:
+- Resuming from a checkpoint if available
+- Saving best model based on validation loss
+- Generating and saving graph visualizations
 
-## Representative Generated Assemblies
-
-<p align="center">
-  <img src="assets/generated_subgraphs.png" width="1000">
-</p>
-
-These assemblies preserve key geometric and topological measures relative to the reference IDOX micro-CT dataset, including:
-
-* Grain size distribution (effective radius)
-* OBB dimension and orientation distributions
-* Surface mean curvature distribution
-* Orientation tensor metrics (compactness, flakiness, elongation)
-* Degree distribution
-* Clustering coefficient
-* Graph density
-* Inter-grain spacing statistics
-* Polymer-to-grain phase ratio
-
-Minor compression of distribution tails may occur due to latent-space regularization effects.
-
----
-
-## Reconstruction to Simulation-Ready Geometry
-
-<p align="center">
-  <img src="assets/meshing.png" width="900">
-</p>
-
-Generated point clouds are reconstructed using Poisson surface reconstruction and remeshed to produce watertight crystal grain geometries suitable for:
-
-* Finite element preprocessing
-* Voxelization workflows
-* Mesoscale mechanical simulation
-* Parametric studies
-
----
-
-## Latent Diffusion Behavior
-
-<p align="center">
-  <img src="assets/latent_interpolation_with_pauses.gif" width="750">
-</p>
-
-The animation illustrates latent-space interpolation during diffusion-based geometry generation, demonstrating smooth morphological transitions under OBB conditioning.
-
----
-
-## GraphRNN Inference Structure
-
-<p align="center">
-  <img src="assets/GraphRNN_Nodes_At_Inference_Time.png" width="800">
-</p>
-
-The sequence illustrates node-state updates and conditional edge sampling during autoregressive graph construction.
-
----
-
-## Reproducibility and Data Conventions
-
-* All geometries are provided in **STL (stereolithography) format**.
-* Units are consistent across all subgraphs.
-* Each grain mesh is watertight.
-* Assemblies are spatially aligned and directly usable for simulation workflows.
-* Coordinate frames are preserved across individual grains and assemblies.
-
-The dataset is synthetic and generated using trained generative models described in the associated manuscript.
-
----
-
-## Code Release
-
-The full training and inference pipeline will be released in a subsequent update once the codebase has been cleaned, modularized, and documented.
-
-The release will include:
-
-* MicrostructureRNN training and inference modules
-* Point cloud autoencoder
-* Conditional latent diffusion implementation
-* Conditioning modules
-* Mesh reconstruction utilities
-* Voxelization tools
-
----
-
-## Intended Applications
-
-The generated assemblies may be used for:
-
-* Mesoscale mechanical simulation
-* Synthetic database augmentation
-* Sensitivity analysis of microstructural descriptors
-* Surrogate model development
-* Shock and ignition modeling in PBX systems
-
-All geometries are synthetic and generated using trained generative models.
-
----
-
-## Citation
-
-If this dataset is used, please cite:
-
-```bibtex
-@article{poliner2026pbx,
-  title={Deep Generative Graphs for Synthesizing Microstructure of Topology-Preserved Polymer-Bonded Explosives},
-  author={Poliner, Jarett and Sun, WaiChing and Alshibli, Khalid A. and Regueiro, Richard A.},
-  journal={Engineering with Computers},
-  year={2026}
-}
+## Model Checkpointing
+The model automatically saves its state in:
+```
+output_folder/
+  ├── node_rnn_final.pth
+  ├── edge_rnn_final.pth
+  ├── training_state.pth
+  ├── loss.png
+  ├── graph_epoch_*.png
 ```
 
----
-
-## Status
-
-* Link to Synthetic dataset (100 subgraph clusters) included
-* Remeshed crystal grain STL geometries included
-* Code release forthcoming
-
+## Output
+- **Trained models** for node and edge prediction
+- **Loss curves** for tracking training progress
+- **Generated graphs** visualized in 3D
